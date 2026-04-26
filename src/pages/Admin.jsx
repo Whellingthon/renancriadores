@@ -1,3 +1,6 @@
+const BASE_URL = "https://cors-anywhere.herokuapp.com/http://187.127.28.171/renancriadores/api";
+// ... dentro do useEffect:
+fetch(API_URL) // <--- Use a variável aqui, sem aspas!
 import { useState } from 'react';
 import { 
   Sprout, Settings, Package, TrendingUp, RefreshCw, 
@@ -20,11 +23,11 @@ export default function Admin() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const resposta = await fetch("http://187.127.28.171/renancriadores/api/api_margem.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ margem: margin })
-      });
+     const resposta = await fetch(`${BASE_URL}/api_margem.php`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ margem: margin })
+});
 
       const resultado = await resposta.json();
 
@@ -47,7 +50,7 @@ export default function Admin() {
     setSyncStatus({ tipo: 'info', mensagem: '🤖 Iniciando robô... Aguarde a conclusão.' });
 
     try {
-     const resposta = await fetch("http://187.127.28.171/renancriadores/api/api_run_robot.php", {
+     const resposta = await fetch(`${BASE_URL}/api_run_robot.php`, {
   method: 'POST',
   credentials: 'include', // ISSO AQUI envia os cookies do PHP
 });

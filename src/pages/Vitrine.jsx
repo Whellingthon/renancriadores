@@ -1,3 +1,7 @@
+const API_URL = "https://cors-anywhere.herokuapp.com/http://187.127.28.171/renancriadores/api/api_get_produtos.php";
+
+// ... dentro do useEffect:
+fetch(API_URL) // <--- Use a variável aqui, sem aspas!
 import { useState, useEffect } from 'react';
 import { ShoppingCart, Send, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
