@@ -1,22 +1,21 @@
-const API_URL = "https://cors-anywhere.herokuapp.com/http://187.127.28.171/renancriadores/api/api_get_produtos.php";
-
-// ... dentro do useEffect:
-fetch(API_URL) // <--- Use a variável aqui, sem aspas!
 import { useState, useEffect } from 'react';
 import { ShoppingCart, Send, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import logo from '../pages/img/logotipo.png'; 
+
+// Master, esta URL "engana" a segurança da Vercel para permitir o acesso ao seu IP
+const API_URL = "https://cors-anywhere.herokuapp.com/http://187.127.28.171/renancriadores/api/api_get_produtos.php";
 
 export default function Vitrine() {
   const [produtos, setProdutos] = useState([]);
   const [carrinho, setCarrinho] = useState([]);
   const [busca, setBusca] = useState('');
 
-useEffect(() => {
-    // Ajustado para o nome da pasta em minúsculo conforme a VPS
-    fetch("http://187.127.28.171/renancriadores/api/api_get_produtos.php")
+  useEffect(() => {
+    // IMPORTANTE: Usando a constante API_URL definida no topo
+    fetch(API_URL)
       .then(res => {
-        if (!res.ok) throw new Error("Erro na rede");
+        if (!res.ok) throw new Error("Erro na rede ou no Proxy");
         return res.json();
       })
       .then(dados => setProdutos(dados))
@@ -39,28 +38,24 @@ useEffect(() => {
   return (
     <div className="bg-gray-50 min-h-screen p-6 sm:p-12 font-sans pb-40">
       <header className="max-w-6xl mx-auto mb-16 text-center">
-        {/* LOGOTIPO CENTRALIZADO USANDO A VARIÁVEL IMPORTADA */}
         <div className="flex justify-center mb-6">
-          <img 
-            src={logo} 
-            alt="Renan Criadores Logo" 
-            className="h-32 w-auto object-contain drop-shadow-md" 
-          />
+          <img src={logo} alt="Logo" className="h-32 w-auto object-contain drop-shadow-md" />
         </div>
+        
         <Link to="/admin">
-  <button style={{ padding: '10px', backgroundColor: '#007bff', color: 'white', borderRadius: '5px' }}>
-    Acessar Painel Admin
-  </button>
-</Link>
-        <div className="h-1 w-20 bg-green-500 mx-auto rounded-full"></div>
+          <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium shadow-md transition-all">
+            Acessar Painel Admin
+          </button>
+        </Link>
 
-        {/* INPUT DE BUSCA */}
+        <div className="h-1 w-20 bg-green-500 mx-auto rounded-full mt-6"></div>
+
         <div className="mt-10 max-w-md mx-auto relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input 
             type="text"
             placeholder="O que seu pássaro precisa?"
-            className="w-full pl-12 pr-4 py-4 rounded-2xl border-none shadow-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-700 transition-all focus:scale-105"
+            className="w-full pl-12 pr-4 py-4 rounded-2xl border-none shadow-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-700"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
           />
@@ -69,7 +64,7 @@ useEffect(() => {
 
       <main className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
         {produtosFiltrados.map((p) => (
-          <div key={p.id} className="bg-white rounded-[2.5rem] shadow-xl p-6 flex flex-col items-center text-center transition-all hover:translate-y-[-8px] border border-gray-100">
+          <div key={p.id} className="bg-white rounded-[2.5rem] shadow-xl p-6 flex flex-col items-center text-center transition-all hover:scale-105 border border-gray-100">
             <div className="relative w-full mb-6 overflow-hidden rounded-[2rem] h-48 bg-gray-50">
               <img src={p.imagem || "https://via.placeholder.com/300"} alt={p.nome} className="w-full h-full object-contain" />
             </div>
@@ -82,7 +77,6 @@ useEffect(() => {
         ))}
       </main>
 
-      {/* FOOTER DO CARRINHO */}
       {carrinho.length > 0 && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
           <div className="bg-white rounded-3xl shadow-2xl border-2 border-green-500 p-6 flex items-center justify-between">
@@ -92,10 +86,9 @@ useEffect(() => {
             <button 
               onClick={() => {
                 const total = calcularTotal().toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                let msg = `Olá Maya! NOVO PEDIDO - RENAN CRIADORES:%0A%0A;`;
+                let msg = `Olá! NOVO PEDIDO - RENAN CRIADORES:%0A%0A`;
                 carrinho.forEach((item, i) => msg += `${i+1}. ${item.nome} - ${item.preco}%0A`);
                 msg += `%0A*Total: ${total}*`;
-                
                 window.open(`https://wa.me/5512997498001?text=${msg}`, '_blank');
               }} 
               className="bg-green-600 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-2"
