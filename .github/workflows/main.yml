@@ -1,0 +1,29 @@
+name: Sincronizador de Preços Diário
+on:
+  schedule:
+    - cron: '0 7 * * *' # Roda às 04:00 BRT (7:00 UTC) todos os dias
+  workflow_dispatch: # Permite que você rode manualmente pelo site do GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixando o Código
+        uses: actions/checkout@v3
+
+      - name: Instalando Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Instalando Dependências e Chrome
+        run: |
+          npm install
+          npx puppeteer browsers install chrome
+
+      - name: Executando o Robô do Mestre
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }} # Dados sensíveis ficam escondidos no GitHub
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+        run: node robot.js
