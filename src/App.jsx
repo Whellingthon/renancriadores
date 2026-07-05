@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Vitrine from './pages/Vitrine';
 import Admin from './pages/Admin';
+import Login from './pages/Login'; // <-- IMPORTAÇÃO ADICIONADA AQUI
 
 function App() {
   return (
@@ -14,6 +15,9 @@ function App() {
         
         {/* Rota do painel que já configuramos */}
         <Route path="/admin" element={<Admin />} />
+
+        {/* Rota de Login (Agora devidamente DENTRO de <Routes>) */}
+        <Route path="/login" element={<Login />} />
       </Routes>
     </BrowserRouter>
   );
