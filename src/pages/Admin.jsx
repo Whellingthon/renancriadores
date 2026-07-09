@@ -9,13 +9,13 @@ import { useNavigate } from 'react-router-dom'; // Adicione esta linha lá no to
 
 // ==========================================
 // AMBIENTE DE DESENVOLVIMENTO (Localhost)
-// Descomente a linha abaixo para contornar o CORS no seu PC (caso o proxy volte a funcionar)
+// Descomente a linha abaixo para contornar o CORS nn vps (caso o proxy volte a funcionar)
 // const BASE_URL = "https://cors-anywhere.herokuapp.com/http://187.127.28.171/renancriadores/api";
 
 // ==========================================
 // AMBIENTE DE PRODUÇÃO (VPS)
 // Linha oficial: Deixe esta descomentada ao fazer o upload para o servidor
-const BASE_URL = "https://cors-anywhere.herokuapp.com/http://187.127.28.171/renancriadores/api";
+const BASE_URL = "http://187.127.28.171/api";
 
 export default function Admin() {
   const [margin, setMargin] = useState(20);
@@ -39,16 +39,27 @@ export default function Admin() {
   const [idEditando, setIdEditando] = useState(null);
 
   // READ: Carregar dados iniciais (Margem e Produtos Manuais)
-  const carregarProdutosManuais = async () => {
+  /*const carregarProdutosManuais = async () => {
     try {
-      const resp = await fetch(`${BASE_URL}/api_listar_produtos_manuais.php`);
+      const resp = await fetch(`${BASE_URL}/api_listar_produtos_manuais.php`); 
+
       const dados = await resp.json();
       if (dados.sucesso) setListaProdutosManuais(dados.produtos);
     } catch (err) {
       console.error("Erro ao carregar lista de produtos manuais");
     }
+  }; qdo quiser voltar para por lucro nos produtos*/
+const carregarProdutosManuais = async () => {
+    try {
+      const resp = await fetch(`${BASE_URL}/api_get_produtos.php`); 
+      const dados = await resp.json();
+      
+      // Como o arquivo retorna o array diretamente, usamos 'dados' direto
+      setListaProdutosManuais(dados); 
+    } catch (err) {
+      console.error("Erro ao carregar lista de produtos manuais", err);
+    }
   };
-
   useEffect(() => {
     const carregarMargem = async () => {
       try {
@@ -316,73 +327,14 @@ const handleSair = () => {
           </div>
         </div>
 
-        {/* Formulário de Cadastro Manual */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-          <div className={`${idEditando ? 'bg-orange-500' : 'bg-purple-600'} p-4 text-white flex items-center justify-between`}>
-            <div className="flex items-center gap-2">
-              {idEditando ? <Edit size={20} /> : <PlusCircle size={20} />}
-              <h3 className="font-bold">
-                {idEditando ? 'Editando Produto Manual' : 'Cadastrar Produto Próprio (Manual)'}
-              </h3>
-            </div>
-            {idEditando && (
-              <button onClick={handleCancelarEdicao} className="text-xs font-bold bg-white/20 px-3 py-1 rounded-lg hover:bg-white/30 transition-colors">
-                Cancelar Edição
-              </button>
-            )}
-          </div>
-          <div className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-             <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nome do Produto</label>
-                <input 
-                  type="text" 
-                  name="nome"
-                  value={produtoManual.nome}
-                  onChange={handleInputChange}
-                  placeholder="Ex: Gaiola de Torneio Premium"
-                  className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-400"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Preço de Venda Final (R$)</label>
-                <input 
-                  type="number" 
-                  name="preco"
-                  value={produtoManual.preco}
-                  onChange={handleInputChange}
-                  placeholder="Ex: 150.00"
-                  className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-400"
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">URL da Imagem do Produto</label>
-                <input 
-                  type="text" 
-                  name="imagemUrl"
-                  value={produtoManual.imagemUrl}
-                  onChange={handleInputChange}
-                  placeholder="Ex: https://site.com/foto.jpg"
-                  className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-400 mb-4"
-                />
-                <button 
-                  onClick={handleCadastrarProdutoManual}
-                  className={`${idEditando ? 'bg-orange-500 hover:bg-orange-600' : 'bg-purple-600 hover:bg-purple-700'} text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors mt-auto w-full`}
-                >
-                  {idEditando ? <Edit size={20} /> : <PlusCircle size={20} />}
-                  {idEditando ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR PRODUTO'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+       
 
         {/* Tabela de Produtos Manuais */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="bg-gray-800 p-4 text-white flex items-center justify-between">
             <h3 className="font-bold flex items-center gap-2">
               <Package size={20} />
-              Meus Produtos (Cadastrados Manualmente)
+              Meus Produtos
             </h3>
             <span className="bg-gray-700 px-3 py-1 rounded-lg text-xs font-bold">
               {listaProdutosManuais.length} itens
@@ -441,8 +393,51 @@ const handleSair = () => {
             </table>
           </div>
         </div>
-
+        <div className="mt-8">
+ {/* Formulário de Cadastro Manual - CORRIGIDO */}
+<div>
+  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nome do Produto</label>
+  <input 
+    type="text" 
+    name="nome"
+    value={produtoManual.nome || ""}
+    onChange={handleInputChange}
+    placeholder="Ex: Gaiola de Torneio Premium"
+    className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-400"
+  />
+</div>
+<div>
+  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Preço de Venda Final (R$)</label>
+  <input 
+    type="text" 
+    name="preco"
+    value={produtoManual.preco || ""}
+    onChange={handleInputChange} // Alterado para usar o handleInputChange padrão
+    placeholder="Ex: 150.00"
+    className="w-full p-3 bg-white border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm" 
+  />
+</div>
+<div className="flex flex-col">
+  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">URL da Imagem</label>
+  <input 
+    type="text" 
+    name="imagemUrl"
+    value={produtoManual.imagemUrl || ""}
+    onChange={handleInputChange}
+    placeholder="Ex: https://site.com/foto.jpg"
+    className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-400 mb-4"
+  />
+  <button 
+    onClick={handleCadastrarProdutoManual}
+    className={`${idEditando ? 'bg-orange-500 hover:bg-orange-600' : 'bg-purple-600 hover:bg-purple-700'} text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors mt-auto w-full`}
+  >
+    {idEditando ? <Edit size={20} /> : <PlusCircle size={20} />}
+    {idEditando ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR PRODUTO'}
+  </button>
+</div>
+</div>
       </main>
     </div>
+    
   );
 }

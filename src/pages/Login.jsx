@@ -4,7 +4,7 @@ import { Lock, User } from 'lucide-react';
 import logo from '../pages/img/logotipo.png'; // Ajuste o caminho se necessário
 
 // Substitua suas constantes atuais por esta estrutura que você já usava:
-const BASE_URL = "https://cors-anywhere.herokuapp.com/http://187.127.28.171/renancriadores/api";
+const BASE_URL = "http://187.127.28.171/api";
 
 export default function Login() {
   const [usuario, setUsuario] = useState('');
@@ -28,6 +28,7 @@ export default function Login() {
       });
       
       const dados = await resposta.json();
+      console.log("Resposta do servidor:", dados);
 
       if (dados.sucesso) {
         // Grava um "crachá" no navegador para provar que está logado
@@ -37,14 +38,8 @@ export default function Login() {
         setErro('Usuário ou senha incorretos.');
       }
     } catch (error) {
-      // Para você continuar testando no localhost enquanto não criamos o PHP:
-      // Se der erro de conexão (porque o PHP não existe), vamos criar um "login mestre" provisório:
-      if (usuario === 'admin' && senha === '1234') {
-        localStorage.setItem('sidmaya_auth', 'true');
-        navigate('/admin');
-      } else {
-        setErro('Erro de conexão. Servidor offline.');
-      }
+      
+     
     } finally {
       setCarregando(false);
     }

@@ -13,14 +13,15 @@ try {
 
     $listaFinal = [];
 
-    foreach ($produtos as $p) {
+  foreach ($produtos as $p) {
         // Cálculo da margem que você criou (Mantenha sempre!)
         $precoVenda = $p['preco_custo'] * (1 + $margem / 100);
         $listaFinal[] = [
             "id" => $p['id'],
             "nome" => $p['nome'],
             "preco" => "R$ " . number_format($precoVenda, 2, ',', '.'),
-            "imagem" => $p['imagem_url']
+            "imagem" => $p['imagem_url'],
+            "descricao" => $p['descricao'] // <-- ADICIONE ESTA LINHA
         ];
     }
 
