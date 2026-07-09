@@ -256,7 +256,7 @@ export default function Vitrine() {
                     
                     {formaPagto === 'pix' ? (
                       <div className="bg-purple-100 p-3 rounded-lg text-purple-800 text-sm mb-4">
-                        <p className="font-black mb-1">Chave PIX (Celular): 12996302071</p>
+                        <p className="font-black mb-1">Chave PIX (CPF): 423.187.088-86</p>
                         <p>Valor: {calcularTotal().toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                       </div>
                     ) : (

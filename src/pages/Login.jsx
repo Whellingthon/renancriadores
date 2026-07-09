@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User } from 'lucide-react';
-import logo from '../pages/img/logotipo.png'; // Ajuste o caminho se necessário
+import logo from '../pages/img/logotipo.png'; 
+
 
 // Substitua suas constantes atuais por esta estrutura que você já usava:
 const BASE_URL = "http://187.127.28.171/api";
@@ -31,8 +32,8 @@ export default function Login() {
       console.log("Resposta do servidor:", dados);
 
       if (dados.sucesso) {
-        // Grava um "crachá" no navegador para provar que está logado
-        localStorage.setItem('sidmaya_auth', 'true');
+        
+        localStorage.setItem('logado', 'true');
         navigate('/admin'); // Manda para o painel
       } else {
         setErro('Usuário ou senha incorretos.');
@@ -49,7 +50,14 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4 font-sans">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl overflow-hidden">
         <div className="bg-green-600 p-8 text-center flex flex-col items-center">
-          <img src={logo} alt="Logo" className="h-20 w-auto mb-4 drop-shadow-md brightness-0 invert" />
+          <div className="h-20 w-20 flex items-center justify-center overflow-hidden">
+  <img 
+    src={logo} 
+    alt="Logo" 
+    style={{ width: '80px', height: '80px', objectFit: 'contain' }}
+    className="max-h-full max-w-full object-contain brightness-0 invert" 
+  />
+</div>
           <h2 className="text-2xl font-black text-white tracking-wide">Acesso Restrito</h2>
           <p className="text-green-100 text-sm mt-2 font-medium">SISTEMA SID-MAYA</p>
         </div>

@@ -3,24 +3,18 @@
 require_once 'api_get_config.php';
 
 try {
-    // 2. Busca a margem definida no Admin (Usando o $pdo que vem do config)
-    $stmtMargem = $pdo->query("SELECT valor FROM configuracoes WHERE chave = 'margem_lucro'");
-    $margem = (float)$stmtMargem->fetchColumn();
-
-    // 3. Busca os produtos que o robô salvou
+        // 3. Busca os produtos que o robô salvou
     $stmtProd = $pdo->query("SELECT * FROM produtos");
     $produtos = $stmtProd->fetchAll(PDO::FETCH_ASSOC);
 
     $listaFinal = [];
 
   foreach ($produtos as $p) {
-        // Cálculo da margem que você criou (Mantenha sempre!)
-        $precoVenda = $p['preco_custo'] * (1 + $margem / 100);
-        $listaFinal[] = [
+               $listaFinal[] = [
             "id" => $p['id'],
             "nome" => $p['nome'],
-            "preco" => "R$ " . number_format($precoVenda, 2, ',', '.'),
-            "imagem" => $p['imagem_url'],
+            "preco" => "R$ " . number_format($p['preco_custo'], 2, ',', '.'),
+            "imagem" => $p['imagemUrl'],
             "descricao" => $p['descricao'] // <-- ADICIONE ESTA LINHA
         ];
     }

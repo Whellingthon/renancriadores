@@ -8,27 +8,31 @@ require_once 'api_get_config.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-// Verifica se o ID foi enviado
+// Verifica se o ID chegou
 if (!isset($data['id'])) {
     echo json_encode(["sucesso" => false, "erro" => "ID do produto não fornecido."]);
     exit;
 }
 
 try {
-    // Comando SQL alinhado com os dados do seu Admin.jsx
-    $sql = "UPDATE produtos SET nome = :nome, preco = :preco, imagemUrl = :imagemUrl WHERE id = :id";
+    // Transforma "R$ 25,00" ou "25,00" em "25.00" para o banco de dados
+    $preco_limpo = str_replace(['R$', ' ', ','], ['', '', '.'], $data['preco']);
+
+    // O comando SQL usando :preco_custo como apelido
+    $sql = "UPDATE produtos SET nome = :nome, preco_custo = :preco_custo, imagemUrl = :imagemUrl WHERE id = :id";
+    
     $stmt = $pdo->prepare($sql);
     
+    // O array usando exatamente os mesmos apelidos do comando acima
     $stmt->execute([
-        ':id'        => $data['id'],
-        ':nome'      => $data['nome'],
-        ':preco'     => $data['preco'],
-        ':imagemUrl' => $data['imagemUrl']
+        ':id'          => $data['id'],
+        ':nome'        => $data['nome'],
+        ':preco_custo' => $preco_limpo, 
+        ':imagemUrl'   => $data['imagemUrl']
     ]);
 
     echo json_encode(["sucesso" => true, "mensagem" => "Produto atualizado com sucesso!"]);
 } catch (Exception $e) {
-    // Se der erro no banco, ele devolve a mensagem exata para facilitar o debug
     echo json_encode(["sucesso" => false, "erro" => $e->getMessage()]);
 }
 ?>

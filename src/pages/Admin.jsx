@@ -3,18 +3,12 @@ import {
   Sprout, Settings, Package, TrendingUp, RefreshCw, 
   Clock, SlidersHorizontal, Play, PlusCircle, Edit, Trash2
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import "../App.css";
-import { useNavigate } from 'react-router-dom'; // Adicione esta linha lá no topo
-
-// ==========================================
-// AMBIENTE DE DESENVOLVIMENTO (Localhost)
-// Descomente a linha abaixo para contornar o CORS nn vps (caso o proxy volte a funcionar)
-// const BASE_URL = "https://cors-anywhere.herokuapp.com/http://187.127.28.171/renancriadores/api";
-
+import DashboardVendas from './DashboardVendas';
 // ==========================================
 // AMBIENTE DE PRODUÇÃO (VPS)
-// Linha oficial: Deixe esta descomentada ao fazer o upload para o servidor
+// ==========================================
 const BASE_URL = "http://187.127.28.171/api";
 
 export default function Admin() {
@@ -25,11 +19,11 @@ export default function Admin() {
   const [syncStatus, setSyncStatus] = useState({ tipo: '', mensagem: '' });
   const navigate = useNavigate();
 
-  // Trava de Segurança: Verifica se o crachá existe assim que abre a página
+  // Trava de Segurança
   useEffect(() => {
     const logado = localStorage.getItem('sidmaya_auth');
     if (!logado) {
-      navigate('/login'); // Expulsa para a tela de login se não tiver o crachá
+      navigate('/login');
     }
   }, [navigate]);
 
@@ -38,28 +32,18 @@ export default function Admin() {
   const [listaProdutosManuais, setListaProdutosManuais] = useState([]);
   const [idEditando, setIdEditando] = useState(null);
 
-  // READ: Carregar dados iniciais (Margem e Produtos Manuais)
-  /*const carregarProdutosManuais = async () => {
-    try {
-      const resp = await fetch(`${BASE_URL}/api_listar_produtos_manuais.php`); 
-
-      const dados = await resp.json();
-      if (dados.sucesso) setListaProdutosManuais(dados.produtos);
-    } catch (err) {
-      console.error("Erro ao carregar lista de produtos manuais");
-    }
-  }; qdo quiser voltar para por lucro nos produtos*/
-const carregarProdutosManuais = async () => {
+  // Carregar lista de produtos
+  const carregarProdutosManuais = async () => {
     try {
       const resp = await fetch(`${BASE_URL}/api_get_produtos.php`); 
       const dados = await resp.json();
-      
-      // Como o arquivo retorna o array diretamente, usamos 'dados' direto
       setListaProdutosManuais(dados); 
     } catch (err) {
       console.error("Erro ao carregar lista de produtos manuais", err);
     }
   };
+
+  // Carregar margem inicial
   useEffect(() => {
     const carregarMargem = async () => {
       try {
@@ -75,7 +59,7 @@ const carregarProdutosManuais = async () => {
     carregarProdutosManuais();
   }, []);
 
-  // UPDATE: Configuração da Margem
+  // Salvar Configuração da Margem
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -96,15 +80,12 @@ const carregarProdutosManuais = async () => {
       setTimeout(() => setToast(null), 3500);
     }
   };
-const handleSair = () => {
+
+  const handleSair = () => {
     localStorage.removeItem('sidmaya_auth');
     navigate('/login');
   };
 
-  {/* Lá no HTML do Header, mude o botão Sair para: */}
-  <button onClick={handleSair} className="text-sm font-medium text-red-500 bg-red-50 px-4 py-2 rounded-lg border border-red-100 hover:bg-red-100 transition-colors">
-    Sair
-  </button>
   // Sincronização Penna Firme
   const handleSyncRobot = async () => {
     setIsSyncing(true);
@@ -132,16 +113,28 @@ const handleSair = () => {
   };
 
   const handleCadastrarProdutoManual = async () => {
+    // 1. Validar campos
     if (!produtoManual.nome || !produtoManual.preco || !produtoManual.imagemUrl) {
       setToast({ message: "Preencha todos os campos do produto manual!", type: "error" });
       setTimeout(() => setToast(null), 3500);
       return;
     }
 
+    // 2. Montar o payload ANTES de usar
     const isEditando = idEditando !== null;
-    const endpoint = isEditando ? `${BASE_URL}/api_editar_produto_manual.php` : `${BASE_URL}/api_produto_manual.php`;
-    const payload = isEditando ? { ...produtoManual, id: idEditando } : produtoManual;
+    const payload = {
+      id: idEditando, 
+      nome: produtoManual.nome,
+      preco: produtoManual.preco,
+      imagemUrl: produtoManual.imagemUrl
+    };
 
+    const endpoint = isEditando ? `${BASE_URL}/api_editar_produto_manual.php` : `${BASE_URL}/api_produto_manual.php`;
+
+    console.log("Enviando para:", endpoint);
+    console.log("Payload:", payload);
+
+    // 3. Fazer o envio
     try {
       const resposta = await fetch(endpoint, {
         method: "POST",
@@ -150,15 +143,19 @@ const handleSair = () => {
       });
       
       const resultado = await resposta.json();
+      console.log("Resposta da API:", resultado);
+
       if (resultado.sucesso) {
         setToast({ message: isEditando ? "Produto atualizado!" : "Produto cadastrado!", type: "success" });
         setProdutoManual({ nome: '', preco: '', imagemUrl: '' }); 
         setIdEditando(null);
         carregarProdutosManuais();
       } else {
-        setToast({ message: "Erro ao salvar produto.", type: "error" });
+        console.error("Erro da API:", resultado.erro);
+        setToast({ message: "Erro: " + resultado.erro, type: "error" });
       }
     } catch (error) {
+      console.error("Erro de comunicação:", error);
       setToast({ message: "Erro de comunicação com o servidor.", type: "error" });
     } finally {
       setTimeout(() => setToast(null), 3500);
@@ -168,11 +165,11 @@ const handleSair = () => {
   const handleEditarProduto = (produto) => {
     setProdutoManual({
       nome: produto.nome,
-      preco: produto.preco,
-      imagemUrl: produto.imagemUrl
+      preco: produto.preco || produto.preco_custo || '', // Garante que puxa o preço corretamente do banco
+      imagemUrl: produto.imagem
     });
     setIdEditando(produto.id);
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); // Rola a tela para o formulário
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); 
   };
 
   const handleExcluirProduto = async (id) => {
@@ -229,26 +226,32 @@ const handleSair = () => {
             <Link to="/" className="text-sm font-medium text-gray-600 bg-gray-100 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-200 transition-colors">
               ← Ver Vitrine
             </Link>
-            <button className="text-sm font-medium text-red-500 bg-red-50 px-4 py-2 rounded-lg border border-red-100 hover:bg-red-100 transition-colors">
+              <Link to="/admin/dashboard" className="text-sm font-medium text-blue-600 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors">
+        📊 Dashboard
+      </Link>
+            <button onClick={handleSair} className="text-sm font-medium text-red-500 bg-red-50 px-4 py-2 rounded-lg border border-red-100 hover:bg-red-100 transition-colors">
               Sair
             </button>
+          
             <span className="text-sm text-gray-400 font-medium">v2.2.0</span>
             <Settings className="text-gray-400 cursor-pointer hover:text-gray-600" size={20} />
           </div>
         </div>
+        
       </header>
 
       <main className="max-w-6xl mx-auto p-6 mt-4">
         
         {/* Top Cards (Status) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
-            <div className="bg-blue-50 p-3 rounded-lg mb-3">
-              <Package className="text-blue-500" size={24} />
-            </div>
-            <h2 className="text-4xl font-black text-gray-800">248</h2>
-            <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">Produtos Ativos</p>
-          </div>
+         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
+    <div className="bg-blue-50 p-3 rounded-lg mb-3">
+      <Package className="text-blue-500" size={24} />
+    </div>
+    {/* AQUI ESTÁ A CORREÇÃO: trocamos 248 por listaProdutosManuais.length */}
+    <h2 className="text-4xl font-black text-gray-800">{listaProdutosManuais.length}</h2>
+    <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">Produtos Ativos</p>
+  </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
             <div className="bg-green-50 p-3 rounded-lg mb-3">
@@ -327,7 +330,8 @@ const handleSair = () => {
           </div>
         </div>
 
-       
+        {/* Formulário de Cadastro Manual */}
+        
 
         {/* Tabela de Produtos Manuais */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -355,89 +359,113 @@ const handleSair = () => {
                 {listaProdutosManuais.length === 0 ? (
                   <tr>
                     <td colSpan="4" className="p-8 text-center text-gray-400 font-medium">
-                      Nenhum produto manual cadastrado ainda.
+                      Nenhum produto cadastrado.
                     </td>
                   </tr>
                 ) : (
-                  listaProdutosManuais.map((prod) => (
-                    <tr key={prod.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="p-4">
-                        {prod.imagemUrl ? (
-                          <img src={prod.imagemUrl} alt={prod.nome} className="w-12 h-12 object-cover rounded-lg border border-gray-200" />
-                        ) : (
-                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">Sem foto</div>
-                        )}
-                      </td>
-                      <td className="p-4 font-bold text-gray-700">{prod.nome}</td>
-                      <td className="p-4 font-bold text-green-600">R$ {parseFloat(prod.preco).toFixed(2)}</td>
-                      <td className="p-4 flex items-center justify-center gap-2">
-                        <button 
-                          onClick={() => handleEditarProduto(prod)}
-                          className="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition-colors"
-                          title="Editar"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleExcluirProduto(prod.id)}
-                          className="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-lg transition-colors"
-                          title="Excluir"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  listaProdutosManuais.map((prod) => {
+                    const foto = prod.imagem; // Puxa exatamente como vem do PHP
+                    
+                    return (
+                      <tr key={prod.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td className="p-4">
+                          {foto ? (
+                            <img src={foto} alt={prod.nome} className="w-12 h-12 object-cover rounded-lg border border-gray-200" />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">Sem foto</div>
+                          )}
+                        </td>
+                        <td className="p-4 font-bold text-gray-700">{prod.nome}</td>
+                        
+                        {/* Como o PHP já envia "R$ 150,00", apenas exibimos a variável direto! */}
+                        <td className="p-4 font-bold text-green-600">
+                          {prod.preco} 
+                        </td>
+                        
+                        <td className="p-4 flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => handleEditarProduto(prod)}
+                            className="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition-colors"
+                            title="Editar"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleExcluirProduto(prod.id)}
+                            className="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-lg transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
         </div>
-        <div className="mt-8">
- {/* Formulário de Cadastro Manual - CORRIGIDO */}
-<div>
-  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nome do Produto</label>
-  <input 
-    type="text" 
-    name="nome"
-    value={produtoManual.nome || ""}
-    onChange={handleInputChange}
-    placeholder="Ex: Gaiola de Torneio Premium"
-    className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-400"
-  />
-</div>
-<div>
-  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Preço de Venda Final (R$)</label>
-  <input 
-    type="text" 
-    name="preco"
-    value={produtoManual.preco || ""}
-    onChange={handleInputChange} // Alterado para usar o handleInputChange padrão
-    placeholder="Ex: 150.00"
-    className="w-full p-3 bg-white border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm" 
-  />
-</div>
-<div className="flex flex-col">
-  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">URL da Imagem</label>
-  <input 
-    type="text" 
-    name="imagemUrl"
-    value={produtoManual.imagemUrl || ""}
-    onChange={handleInputChange}
-    placeholder="Ex: https://site.com/foto.jpg"
-    className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-400 mb-4"
-  />
-  <button 
-    onClick={handleCadastrarProdutoManual}
-    className={`${idEditando ? 'bg-orange-500 hover:bg-orange-600' : 'bg-purple-600 hover:bg-purple-700'} text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors mt-auto w-full`}
-  >
-    {idEditando ? <Edit size={20} /> : <PlusCircle size={20} />}
-    {idEditando ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR PRODUTO'}
-  </button>
-</div>
-</div>
+<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+          <div className={`${idEditando ? 'bg-orange-500' : 'bg-purple-600'} p-4 text-white flex items-center justify-between`}>
+            <div className="flex items-center gap-2">
+              {idEditando ? <Edit size={20} /> : <PlusCircle size={20} />}
+              <h3 className="font-bold">
+                {idEditando ? 'Editando Produto' : 'Cadastrar Produto Manual'}
+              </h3>
+            </div>
+            {idEditando && (
+              <button onClick={handleCancelarEdicao} className="text-xs font-bold bg-white/20 px-3 py-1 rounded-lg hover:bg-white/30 transition-colors">
+                Cancelar Edição
+              </button>
+            )}
+          </div>
+          <div className="p-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nome do Produto</label>
+                <input 
+                  type="text" 
+                  name="nome"
+                  value={produtoManual.nome || ""}
+                  onChange={handleInputChange}
+                  placeholder="Ex: Gaiola de Torneio Premium"
+                  className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Preço de Venda Final (R$)</label>
+                <input 
+                  type="text" 
+                  name="preco"
+                  value={produtoManual.preco || ""}
+                  onChange={handleInputChange}
+                  placeholder="Ex: 150.00"
+                  className="w-full p-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm" 
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">URL da Imagem</label>
+                <input 
+                  type="text" 
+                  name="imagemUrl"
+                  value={produtoManual.imagemUrl || ""}
+                  onChange={handleInputChange}
+                  placeholder="Ex: https://site.com/foto.jpg"
+                  className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-400 mb-4"
+                />
+                <button 
+                  onClick={handleCadastrarProdutoManual}
+                  className={`${idEditando ? 'bg-orange-500 hover:bg-orange-600' : 'bg-purple-600 hover:bg-purple-700'} text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors mt-auto w-full`}
+                >
+                  {idEditando ? <Edit size={20} /> : <PlusCircle size={20} />}
+                  {idEditando ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR PRODUTO'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
-    
   );
 }
