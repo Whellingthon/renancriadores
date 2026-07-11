@@ -1,8 +1,14 @@
 import { Navigate } from 'react-router-dom';
 
 export default function RotaProtegida({ children }) {
-  // Verifica se existe um usuário logado (geralmente salvamos no localStorage)
-  const estaLogado = localStorage.getItem('logado') === 'true';
-
-  return estaLogado ? children : <Navigate to="/login" />;
+  // Pega o valor exato salvo no Login
+  const statusLogin = localStorage.getItem('logado');
+  
+  // Se for exatamente a string 'true', libera a passagem
+  if (statusLogin === 'true') {
+    return children;
+  }
+  
+  // Se não for, barra e manda pro login
+  return <Navigate to="/login" replace />;
 }
