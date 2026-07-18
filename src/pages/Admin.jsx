@@ -6,6 +6,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import "../App.css";
 import DashboardVendas from './DashboardVendas';
+
 // ==========================================
 // AMBIENTE DE PRODUÇÃO (VPS)
 // ==========================================
@@ -21,7 +22,8 @@ export default function Admin() {
 
   // Trava de Segurança
   useEffect(() => {
-    const logado = localStorage.getItem('sidmaya_auth');
+    const logado = localStorage.getItem('logado');
+    console.log("Validando acesso no Admin. Valor do crachá:", logado);
     if (!logado) {
       navigate('/login');
     }
@@ -29,6 +31,7 @@ export default function Admin() {
 
   // Estados do CRUD Manual
   const [produtoManual, setProdutoManual] = useState({ nome: '', preco: '', imagemUrl: '' });
+  const [fotoArquivo, setFotoArquivo] = useState(null); // NOVO: Armazena o arquivo de imagem do PC
   const [listaProdutosManuais, setListaProdutosManuais] = useState([]);
   const [idEditando, setIdEditando] = useState(null);
 
@@ -82,7 +85,7 @@ export default function Admin() {
   };
 
   const handleSair = () => {
-    localStorage.removeItem('sidmaya_auth');
+    localStorage.removeItem('logado');
     navigate('/login');
   };
 
@@ -113,20 +116,49 @@ export default function Admin() {
   };
 
   const handleCadastrarProdutoManual = async () => {
-    // 1. Validar campos
-    if (!produtoManual.nome || !produtoManual.preco || !produtoManual.imagemUrl) {
+    // 1. Validar campos (imagemUrl só é obrigatória se não houver um arquivo selecionado do PC)
+    if (!produtoManual.nome || !produtoManual.preco || (!produtoManual.imagemUrl && !fotoArquivo)) {
       setToast({ message: "Preencha todos os campos do produto manual!", type: "error" });
       setTimeout(() => setToast(null), 3500);
       return;
     }
 
-    // 2. Montar o payload ANTES de usar
     const isEditando = idEditando !== null;
+    let urlFinalDaImagem = produtoManual.imagemUrl;
+
+    // 2. Upload da imagem local do PC para a VPS (se existir)
+    if (fotoArquivo) {
+      try {
+        const formData = new FormData();
+        formData.append('foto', fotoArquivo);
+
+        const uploadResp = await fetch(`${BASE_URL}/api_upload_foto.php`, {
+          method: 'POST',
+          body: formData
+        });
+        const uploadResult = await uploadResp.json();
+        
+        if (uploadResult.success) {
+          urlFinalDaImagem = uploadResult.url; // Vincula o caminho relativo da pasta uploads da VPS
+        } else {
+          setToast({ message: "Erro no upload da foto: " + uploadResult.erro, type: "error" });
+          setTimeout(() => setToast(null), 3500);
+          return;
+        }
+      } catch (err) {
+        console.error("Erro na comunicação com a API de upload", err);
+        setToast({ message: "Erro de comunicação no upload da foto.", type: "error" });
+        setTimeout(() => setToast(null), 3500);
+        return;
+      }
+    }
+
+    // 3. Montar o payload pronto
     const payload = {
       id: idEditando, 
       nome: produtoManual.nome,
       preco: produtoManual.preco,
-      imagemUrl: produtoManual.imagemUrl
+      imagemUrl: urlFinalDaImagem
     };
 
     const endpoint = isEditando ? `${BASE_URL}/api_editar_produto_manual.php` : `${BASE_URL}/api_produto_manual.php`;
@@ -134,7 +166,7 @@ export default function Admin() {
     console.log("Enviando para:", endpoint);
     console.log("Payload:", payload);
 
-    // 3. Fazer o envio
+    // 4. Fazer o envio para a persistência no MySQL
     try {
       const resposta = await fetch(endpoint, {
         method: "POST",
@@ -146,8 +178,12 @@ export default function Admin() {
       console.log("Resposta da API:", resultado);
 
       if (resultado.sucesso) {
-        setToast({ message: isEditando ? "Produto atualizado!" : "Produto cadastrado!", type: "success" });
+        setToast({ message: isEditando ? "Produto updated!" : "Produto cadastrado!", type: "success" });
         setProdutoManual({ nome: '', preco: '', imagemUrl: '' }); 
+        setFotoArquivo(null); // Reseta estado do binário
+        if (document.getElementById('input-foto-arquivo')) {
+          document.getElementById('input-foto-arquivo').value = ""; // Limpa visualmente o input de arquivo
+        }
         setIdEditando(null);
         carregarProdutosManuais();
       } else {
@@ -165,7 +201,7 @@ export default function Admin() {
   const handleEditarProduto = (produto) => {
     setProdutoManual({
       nome: produto.nome,
-      preco: produto.preco || produto.preco_custo || '', // Garante que puxa o preço corretamente do banco
+      preco: produto.preco || produto.preco_custo || '', 
       imagemUrl: produto.imagem
     });
     setIdEditando(produto.id);
@@ -198,6 +234,10 @@ export default function Admin() {
 
   const handleCancelarEdicao = () => {
     setProdutoManual({ nome: '', preco: '', imagemUrl: '' });
+    setFotoArquivo(null);
+    if (document.getElementById('input-foto-arquivo')) {
+      document.getElementById('input-foto-arquivo').value = "";
+    }
     setIdEditando(null);
   };
 
@@ -226,9 +266,9 @@ export default function Admin() {
             <Link to="/" className="text-sm font-medium text-gray-600 bg-gray-100 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-200 transition-colors">
               ← Ver Vitrine
             </Link>
-              <Link to="/admin/dashboard" className="text-sm font-medium text-blue-600 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors">
-        📊 Dashboard
-      </Link>
+            <Link to="/admin/dashboard" className="text-sm font-medium text-blue-600 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors">
+              📊 Dashboard
+            </Link>
             <button onClick={handleSair} className="text-sm font-medium text-red-500 bg-red-50 px-4 py-2 rounded-lg border border-red-100 hover:bg-red-100 transition-colors">
               Sair
             </button>
@@ -237,21 +277,19 @@ export default function Admin() {
             <Settings className="text-gray-400 cursor-pointer hover:text-gray-600" size={20} />
           </div>
         </div>
-        
       </header>
 
       <main className="max-w-6xl mx-auto p-6 mt-4">
         
         {/* Top Cards (Status) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
-    <div className="bg-blue-50 p-3 rounded-lg mb-3">
-      <Package className="text-blue-500" size={24} />
-    </div>
-    {/* AQUI ESTÁ A CORREÇÃO: trocamos 248 por listaProdutosManuais.length */}
-    <h2 className="text-4xl font-black text-gray-800">{listaProdutosManuais.length}</h2>
-    <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">Produtos Ativos</p>
-  </div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
+            <div className="bg-blue-50 p-3 rounded-lg mb-3">
+              <Package className="text-blue-500" size={24} />
+            </div>
+            <h2 className="text-4xl font-black text-gray-800">{listaProdutosManuais.length}</h2>
+            <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">Produtos Ativos</p>
+          </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
             <div className="bg-green-50 p-3 rounded-lg mb-3">
@@ -330,11 +368,8 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Formulário de Cadastro Manual */}
-        
-
         {/* Tabela de Produtos Manuais */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
           <div className="bg-gray-800 p-4 text-white flex items-center justify-between">
             <h3 className="font-bold flex items-center gap-2">
               <Package size={20} />
@@ -364,7 +399,7 @@ export default function Admin() {
                   </tr>
                 ) : (
                   listaProdutosManuais.map((prod) => {
-                    const foto = prod.imagem; // Puxa exatamente como vem do PHP
+                    const foto = prod.imagem;
                     
                     return (
                       <tr key={prod.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
@@ -376,12 +411,7 @@ export default function Admin() {
                           )}
                         </td>
                         <td className="p-4 font-bold text-gray-700">{prod.nome}</td>
-                        
-                        {/* Como o PHP já envia "R$ 150,00", apenas exibimos a variável direto! */}
-                        <td className="p-4 font-bold text-green-600">
-                          {prod.preco} 
-                        </td>
-                        
+                        <td className="p-4 font-bold text-green-600">{prod.preco}</td>
                         <td className="p-4 flex items-center justify-center gap-2">
                           <button 
                             onClick={() => handleEditarProduto(prod)}
@@ -406,7 +436,9 @@ export default function Admin() {
             </table>
           </div>
         </div>
-<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+
+        {/* Formulário de Cadastro Manual / Edição */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
           <div className={`${idEditando ? 'bg-orange-500' : 'bg-purple-600'} p-4 text-white flex items-center justify-between`}>
             <div className="flex items-center gap-2">
               {idEditando ? <Edit size={20} /> : <PlusCircle size={20} />}
@@ -445,15 +477,33 @@ export default function Admin() {
                 />
               </div>
               <div className="flex flex-col">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">URL da Imagem</label>
-                <input 
-                  type="text" 
-                  name="imagemUrl"
-                  value={produtoManual.imagemUrl || ""}
-                  onChange={handleInputChange}
-                  placeholder="Ex: https://site.com/foto.jpg"
-                  className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-400 mb-4"
-                />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Foto do Produto (Computador ou Link)</label>
+                <div className="flex flex-col gap-2 mb-4">
+                  {/* Seletor do Computador */}
+                  <input 
+                    id="input-foto-arquivo"
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files[0]) {
+                        setFotoArquivo(e.target.files[0]);
+                        setProdutoManual(prev => ({ ...prev, imagemUrl: "" })); // Zera a URL se escolheu arquivo local
+                      }
+                    }} 
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer border rounded-xl p-1 bg-gray-50/50"
+                  />
+                  {/* URL Externa de Texto */}
+                  {!fotoArquivo && (
+                    <input 
+                      type="text" 
+                      name="imagemUrl"
+                      value={produtoManual.imagemUrl || ""}
+                      onChange={handleInputChange}
+                      placeholder="Ou cole uma URL da imagem aqui"
+                      className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-950 placeholder-gray-400 text-xs"
+                    />
+                  )}
+                </div>
                 <button 
                   onClick={handleCadastrarProdutoManual}
                   className={`${idEditando ? 'bg-orange-500 hover:bg-orange-600' : 'bg-purple-600 hover:bg-purple-700'} text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors mt-auto w-full`}
