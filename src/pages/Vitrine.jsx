@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { ShoppingCart, Send, Search, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import logo from '../pages/img/logotipo.png'; 
+import AdBanner from '../components/AdBanner'; // Ajuste o caminho caso precise apontar para a pasta correta de componentes
+import React from 'react';
 
 const BASE_URL = "http://187.127.28.171/api";
 
@@ -19,18 +21,16 @@ export default function Vitrine() {
   const [formaPagto, setFormaPagto] = useState(null); // null (formulário), 'selecao', 'pix', 'cartao'
   const [dadosCliente, setDadosCliente] = useState({ nome: '', whatsapp: '', endereco: '' });
   const [enviando, setEnviando] = useState(false);
+
   const buscarCep = async (cepDigitado) => {
-    // Remove tudo que não for número (hífen, ponto, etc)
     const cepLimpo = cepDigitado.replace(/\D/g, '');
     
-    // Só pesquisa se tiver exatamente 8 números
     if (cepLimpo.length === 8) {
       try {
         const resposta = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
         const dados = await resposta.json();
 
         if (!dados.erro) {
-          // Se encontrou, monta o endereço e atualiza o estado
           const enderecoFormatado = `${dados.logradouro}, Bairro: ${dados.bairro} - ${dados.localidade}/${dados.uf}`;
           setDadosCliente(prev => ({ ...prev, endereco: enderecoFormatado }));
         } else {
@@ -52,7 +52,6 @@ export default function Vitrine() {
         return res.json();
       })
       .then(dados => {
-        // Ordena para que os manuais apareçam primeiro (opcional, mantive a sua lógica)
         const produtosReorganizados = dados.sort((a, b) => {
           const ehManualA = a.origem === 'manual' ? 1 : 0;
           const ehManualB = b.origem === 'manual' ? 1 : 0;
@@ -96,20 +95,16 @@ export default function Vitrine() {
   // RENDERIZAÇÃO DA TELA
   // -------------------------
   return (
-    <div className="bg-gray-50 min-h-screen p-6 sm:p-12 font-sans pb-40">
+    <div className="bg-gray-50 min-h-screen p-6 sm:p-12 font-sans pb-40 flex flex-col">
       
       {/* CABEÇALHO */}
-      <header className="max-w-6xl mx-auto mb-16 text-center">
+      <header className="max-w-6xl mx-auto mb-16 text-center w-full">
         <div className="flex justify-center mb-6">
           <img src={logo} alt="Logo" className="h-32 w-auto object-contain drop-shadow-md" />
         </div>
         
-        <Link to="/admin">
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium shadow-md transition-all">
-            Acessar Painel Admin
-          </button>
-        </Link>
-
+        <h1 className="text-3xl font-bold text-gray-800">Bem-vindo à Nossa Loja</h1>
+        <p className="text-gray-600">Encontre os melhores produtos para o seu pássaro</p>
         <div className="h-1 w-20 bg-green-500 mx-auto rounded-full mt-6"></div>
 
         <div className="mt-10 max-w-md mx-auto relative">
@@ -125,7 +120,7 @@ export default function Vitrine() {
       </header>
 
       {/* GRADE DE PRODUTOS */}
-      <main className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+      <main className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 flex-grow w-full">
         {produtosFiltrados.map((p) => (
           <div 
             key={p.id} 
@@ -140,6 +135,12 @@ export default function Vitrine() {
           </div>
         ))}
       </main>
+
+      {/* BLOCO DE PUBLICIDADE (ESCOLHIDO PARA O FINAL DA LISTA DE PRODUTOS) */}
+      <div className="max-w-6xl mx-auto w-full mt-16 border-t pt-6">
+        <p className="text-xs text-center text-gray-400 mb-2">Publicidade</p>
+        <AdBanner clientSlot="1234567890" />
+      </div>
 
       {/* CARRINHO FIXO E FLUXO DE CHECKOUT */}
       {carrinho.length > 0 && (
@@ -166,74 +167,74 @@ export default function Vitrine() {
 
             {/* FLUXO DE PAGAMENTO */}
             {modalStep === 'pagamento' && (
-              <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4">
+              <div className="flex flex-col gap-4">
                 
                 {/* ETAPA 1: DADOS DO CLIENTE */}
-{/* ETAPA 1: DADOS DO CLIENTE */}
-{!formaPagto && (
-  <div className="flex flex-col gap-3">
-    <h3 className="font-bold text-lg text-center text-gray-800">Dados para entrega</h3>
-    
-    <input 
-      type="text" 
-      placeholder="Seu Nome Completo" 
-      className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
-      value={dadosCliente.nome}
-      onChange={(e) => setDadosCliente({...dadosCliente, nome: e.target.value})} 
-    />
-    
-    <input 
-      type="text" 
-      placeholder="WhatsApp (DDD + Número)" 
-      className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
-      value={dadosCliente.whatsapp}
-      onChange={(e) => setDadosCliente({...dadosCliente, whatsapp: e.target.value})} 
-    />
+                {!formaPagto && (
+                  <div className="flex flex-col gap-3">
+                    <h3 className="font-bold text-lg text-center text-gray-800">Dados para entrega</h3>
+                    
+                    <input 
+                      type="text" 
+                      placeholder="Seu Nome Completo" 
+                      className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
+                      value={dadosCliente.nome}
+                      onChange={(e) => setDadosCliente({...dadosCliente, nome: e.target.value})} 
+                    />
+                    
+                    <input 
+                      type="text" 
+                      placeholder="WhatsApp (DDD + Número)" 
+                      className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
+                      value={dadosCliente.whatsapp}
+                      onChange={(e) => setDadosCliente({...dadosCliente, whatsapp: e.target.value})} 
+                    />
 
-    {/* CAMPO DE CEP E ENDEREÇO */}
-    <div className="flex gap-2">
-      <input 
-        type="text" 
-        placeholder="CEP (Só números)" 
-        maxLength="9"
-        className="p-3 w-1/3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
-        onChange={(e) => {
-          const valor = e.target.value;
-          buscarCep(valor); 
-        }} 
-      />
-      
-      <input 
-        type="text" 
-        placeholder="Rua, Bairro, Cidade" 
-        className="p-3 w-2/3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
-        value={dadosCliente.endereco}
-        onChange={(e) => setDadosCliente({...dadosCliente, endereco: e.target.value})} 
-      />
-    </div>
-    
-    {/* NÚMERO E COMPLEMENTO */}
-    <input 
-      type="text" 
-      placeholder="Número e Complemento (Ex: 123, Apto 4)" 
-      className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
-      onChange={(e) => setDadosCliente({...dadosCliente, endereco: dadosCliente.endereco + ", " + e.target.value})} 
-    />
-    
-    <button 
-      onClick={() => {
-        if(dadosCliente.nome.trim() && dadosCliente.whatsapp.trim() && dadosCliente.endereco.trim()) {
-          setFormaPagto('selecao'); 
-        } else {
-          alert("Por favor, preencha todos os campos de entrega.");
-        }
-      }}
-      className="bg-green-600 text-white py-3 rounded-xl font-bold mt-2 hover:bg-green-700 shadow-md transition-all"
-    >
-      Confirmar Dados e Escolher Pagamento
-    </button>
-  </div>
-)}
+                    {/* CAMPO DE CEP E ENDEREÇO */}
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="CEP (Só números)" 
+                        maxLength="9"
+                        className="p-3 w-1/3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
+                        onChange={(e) => {
+                          const valor = e.target.value;
+                          buscarCep(valor); 
+                        }} 
+                      />
+                      
+                      <input 
+                        type="text" 
+                        placeholder="Rua, Bairro, Cidade" 
+                        className="p-3 w-2/3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
+                        value={dadosCliente.endereco}
+                        onChange={(e) => setDadosCliente({...dadosCliente, endereco: e.target.value})} 
+                      />
+                    </div>
+                    
+                    {/* NÚMERO E COMPLEMENTO */}
+                    <input 
+                      type="text" 
+                      placeholder="Número e Complemento (Ex: 123, Apto 4)" 
+                      className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
+                      onChange={(e) => setDadosCliente({...dadosCliente, endereco: dadosCliente.endereco + ", " + e.target.value})} 
+                    />
+                    
+                    <button 
+                      onClick={() => {
+                        if(dadosCliente.nome.trim() && dadosCliente.whatsapp.trim() && dadosCliente.endereco.trim()) {
+                          setFormaPagto('selecao'); 
+                        } else {
+                          alert("Por favor, preencha todos os campos de entrega.");
+                        }
+                      }}
+                      className="bg-green-600 text-white py-3 rounded-xl font-bold mt-2 hover:bg-green-700 shadow-md transition-all"
+                    >
+                      Confirmar Dados e Escolher Pagamento
+                    </button>
+                  </div>
+                )}
+
                 {/* ETAPA 2: SELEÇÃO DE PAGAMENTO */}
                 {formaPagto === 'selecao' && (
                   <div className="flex flex-col gap-3">
@@ -256,50 +257,49 @@ export default function Vitrine() {
                     
                     {formaPagto === 'pix' ? (
                       <div className="bg-purple-100 p-3 rounded-lg text-purple-800 text-sm mb-4">
-                        <p className="font-black mb-1">Chave PIX (CPF): 423.187.088-86</p>
-                        <p>Valor: {calcularTotal().toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        <p className="font-bold mb-1">🤖 Atendimento Automático via Robô (Maya)</p>
+                        <p>Ao clicar abaixo, você será direcionado para o WhatsApp da nossa assistente virtual para calcular o frete e finalizar o pagamento.</p>
                       </div>
                     ) : (
                       <div className="bg-blue-100 p-3 rounded-lg text-blue-800 text-sm mb-4">
-                        <p className="font-medium">Você será redirecionado para o ambiente seguro da InfinityPay após confirmar.</p>
+                        <p className="font-medium">Você será redirecionado para o WhatsApp do Renan para combinar os detalhes do Cartão de Crédito.</p>
                       </div>
                     )}
 
                     <button 
-                      disabled={enviando}
-                      onClick={async () => {
-                        setEnviando(true);
-                        try {
-                          // Chama a API que salva o cliente e o pedido no banco
-                          const resp = await fetch(`${BASE_URL}/api_salvar_pedido.php`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                              ...dadosCliente, 
-                              total: calcularTotal(), 
-                              itens: carrinho 
-                            })
-                          });
-                          
-                          const result = await resp.json();
-                          
-                          if(result.sucesso) {
-                            alert("Pedido registrado com sucesso! Em breve entraremos em contato.");
-                            // Aqui, se for cartão, você pode colocar o window.open() para o link da InfinityPay
-                            limparCarrinhoEVoltar();
-                          } else {
-                            alert("Erro ao salvar pedido: " + result.erro);
-                          }
-                        } catch (error) {
-                          console.error("Erro na comunicação com a API:", error);
-                          alert("Erro de conexão. O pedido não pôde ser salvo.");
-                        } finally {
-                          setEnviando(false);
+                      onClick={() => {
+                        const totalCalculado = calcularTotal();
+                        const listaItensTexto = carrinho.map(i => `• ${i.nome} - ${i.preco}`).join('\n');
+
+                        if (formaPagto === 'pix') {
+                          const mensagemMaya = `RENAN - Pedido: R$ ${totalCalculado.toFixed(2)}\n` +
+                                               `👤 *Cliente:* ${dadosCliente.nome}\n` +
+                                               `📱 *WhatsApp:* ${dadosCliente.whatsapp}\n` +
+                                               `📍 *Endereço:* ${dadosCliente.endereco}\n\n` +
+                                               `📦 *Itens do Carrinho:*\n${listaItensTexto}`;
+
+                          const numeroBotMaya = "5512997498001"; 
+                          const urlWap = `https://wa.me/${numeroBotMaya}?text=${encodeURIComponent(mensagemMaya)}`;
+                          window.open(urlWap, '_blank');
+
+                        } else {
+                          const mensagemRenan = `Olá Renan! Gostaria de finalizar minha compra no *Cartão de Crédito*.\n\n` +
+                                                `👤 *Nome:* ${dadosCliente.nome}\n` +
+                                                `📱 *WhatsApp:* ${dadosCliente.whatsapp}\n` +
+                                                `📍 *Endereço:* ${dadosCliente.endereco}\n` +
+                                                `💰 *Total:* R$ ${totalCalculado.toFixed(2)}\n\n` +
+                                                `📦 *Itens:*\n${listaItensTexto}`;
+
+                          const numeroRenan = "5512996302071";
+                          const urlWapRenan = `https://wa.me/${numeroRenan}?text=${encodeURIComponent(mensagemRenan)}`;
+                          window.open(urlWapRenan, '_blank');
                         }
+
+                        limparCarrinhoEVoltar();
                       }}
-                      className={`w-full text-white py-4 rounded-xl font-black text-lg transition-all shadow-lg ${enviando ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                      className="w-full text-white py-4 rounded-xl font-black text-lg transition-all shadow-lg bg-green-600 hover:bg-green-700"
                     >
-                      {enviando ? "Processando..." : "FINALIZAR COMPRA"}
+                      {formaPagto === 'pix' ? "FALAR COM O ROBÔ (PIX)" : "FINALIZAR COM O RENAN (CARTÃO)"}
                     </button>
                   </div>
                 )}
@@ -325,7 +325,7 @@ export default function Vitrine() {
       {produtoSelecionado && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setProdutoSelecionado(null)}>
           <div 
-            className="bg-white rounded-3xl p-6 max-w-md w-full relative shadow-2xl animate-in zoom-in-95 duration-200"
+            className="bg-white rounded-3xl p-6 max-w-md w-full relative shadow-2xl"
             onClick={(e) => e.stopPropagation()} 
           >
             <button 
@@ -357,13 +357,18 @@ export default function Vitrine() {
 
             <button 
               onClick={(e) => handleAdicionarAoCarrinho(produtoSelecionado, e)}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-black text-lg py-4 rounded-xl flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] shadow-lg shadow-green-600/30"
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-black text-lg py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
             >
               <ShoppingCart size={22} /> INSERIR NO CARRINHO
             </button>
           </div>
         </div>
       )}
+
+      {/* RODAPÉ */}
+      <footer className="bg-gray-800 text-white text-center p-4 mt-auto">
+        feito por <a href="https://www.instagram.com/hop_sistemas/" target="_blank" rel="noopener noreferrer" className="underline hover:text-green-400">Hop Sistemas</a> © 2026 - Todos os direitos reservados.
+      </footer>
       
     </div>
   );
