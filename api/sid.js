@@ -27,9 +27,9 @@ const IDENTIDADES = {
         cor: "💪",
         saudacao: "Sua melhor performance começa aqui!"
     },
- 'EOS': {
+    'EOS': {
         nomeLoja: "Portal E.O.S",
-        donoJid: "5512997498001@s.whatsapp.net", // Ajuste o número do dono se necessário
+        donoJid: "5512997498001@s.whatsapp.net",
         origemCep: "12404259", 
         emailPix: "pix@portaleos.com.br",
         cor: "⚡",
@@ -37,20 +37,20 @@ const IDENTIDADES = {
     }
 };
 
-const MP_TOKEN = process.env.MP_TOKEN;
-
 let pedidosAtivos = {};
 let payment = null;
+let sock = null;
+let isBotReady = false; // 🛡️ Controle de prontidão do Socket
 
-async function sidDigitando(sock, remoteJid, tempo = 2000) {
+async function sidDigitando(sockRef, remoteJid, tempo = 2000) {
     try {
-        await sock.sendPresenceUpdate('composing', remoteJid);
+        await sockRef.sendPresenceUpdate('composing', remoteJid);
         await new Promise(r => setTimeout(r, tempo));
-        await sock.sendPresenceUpdate('paused', remoteJid);
+        await sockRef.sendPresenceUpdate('paused', remoteJid);
     } catch (e) {}
 }
 
-async function notificarDono(sock, clienteJid, pedido) {
+async function notificarDono(sockRef, clienteJid, pedido) {
     const iden = pedido.info;
     const relatorio = `🔔 *VENDA CONFIRMADA (${iden.nomeLoja})* 🚀\n\n` +
                       `👤 *Cliente:* wa.me/${clienteJid.split('@')[0]}\n` +
@@ -60,7 +60,7 @@ async function notificarDono(sock, clienteJid, pedido) {
                       `✅ *Status:* Pagamento aprovado!`;
 
     try {
-        await sock.sendMessage(iden.donoJid, { text: relatorio });
+        await sockRef.sendMessage(iden.donoJid, { text: relatorio });
     } catch (err) { console.error("❌ Falha ao notificar dono:", err); }
 }
 
@@ -76,11 +76,10 @@ async function iniciarSid() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
     const { version } = await fetchLatestBaileysVersion(); 
 
-   // Forçando o token direto no código para burlar o cache do PM2
     const clientMP = new MercadoPagoConfig({ accessToken: 'APP_USR-c8c6f2a3-2061-441d-932a-be97987d3593' });
     payment = new Payment(clientMP);
 
-    const sock = makeWASocket({
+    sock = makeWASocket({
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
@@ -93,11 +92,13 @@ async function iniciarSid() {
         const { connection, lastDisconnect, qr } = update;
         
         if (qr) {
+            isBotReady = false;
             console.log('\n📢 --- ESCANEIE O QR CODE ABAIXO --- 📢\n');
             qrcode.generate(qr, { small: true });
         }
 
         if (connection === 'close') {
+            isBotReady = false;
             const erroReal = lastDisconnect?.error;
             const statusCode = new Boom(erroReal)?.output?.statusCode;
             
@@ -112,6 +113,7 @@ async function iniciarSid() {
                 console.log("⛔ Sessão corrompida ou deslogada (Logged Out). A VPS abortou a tentativa.");
             }
         } else if (connection === 'open') {
+            isBotReady = true; // ✅ Liberado para envios
             console.log('\n✅ CONECTADO COM SUCESSO! A Maya está online.');
         }
     });
@@ -125,11 +127,11 @@ async function iniciarSid() {
         const textUP = text.toUpperCase();
 
         try {
-            // 1. DETECÇÃO DA LOJA PELA MENSAGEM DO SITE
             let detectado = null;
             if (textUP.includes('RENAN')) detectado = 'RENAN';
             else if (textUP.includes('WFIT') || textUP.includes('WYNFIT')) detectado = 'WFIT';
             else if (textUP.includes('EOS') || textUP.includes('PORTAL EOS')) detectado = 'EOS';
+            
             if (detectado) {
                 const valorMatch = text.match(/Pedido:\s*(?:R\$\s?)?([\d.,]+)/i);
                 
@@ -137,7 +139,6 @@ async function iniciarSid() {
                     let bruto = valorMatch[1];
                     let valorTotal;
 
-                    // Trata o valor corretamente para aceitar centavos sem multiplicar errado
                     if (bruto.includes(',')) {
                         valorTotal = parseFloat(bruto.replace(/\./g, '').replace(',', '.'));
                     } else if (bruto.includes('.')) {
@@ -165,7 +166,6 @@ async function iniciarSid() {
             const pedido = pedidosAtivos[from];
             if (!pedido) return;
 
-            // 2. ETAPA DE CAPTURA DO CEP E CÁLCULO PELOS CORREIOS (COM ANTI-TRAVAMENTO)
             if (/^\d{8}$/.test(text.replace(/\D/g, '')) && pedido.status === 'AGUARDANDO_CEP') {
                 const cepLimpo = text.replace(/\D/g, '');
                 await sidDigitando(sock, from, 1500);
@@ -183,12 +183,10 @@ async function iniciarSid() {
                         nVlDiametro: '0',
                     };
 
-                    // ⏱️ ANTI-TRAVAMENTO: Limite de 6 segundos de espera
                     const timeoutPromise = new Promise((_, reject) =>
                         setTimeout(() => reject(new Error("Timeout: Os Correios demoraram mais de 6 segundos.")), 6000)
                     );
 
-                    // Disputa: Ou a API responde rápido, ou o timeout corta a operação
                     const response = await Promise.race([
                         calcularPrecoPrazo(argsCorreios),
                         timeoutPromise
@@ -198,7 +196,6 @@ async function iniciarSid() {
                         throw new Error("API dos Correios retornou vazio.");
                     }
 
-                    // Tenta Sedex primeiro, se falhar, tenta o PAC
                     let freteEscolhido = response.find(serv => serv.Codigo === '04014' && serv.Erro === '0');
                     if (!freteEscolhido) {
                         freteEscolhido = response.find(serv => serv.Codigo === '04510' && serv.Erro === '0');
@@ -227,13 +224,12 @@ async function iniciarSid() {
                 return;
             }
 
-            // 3. ETAPA DE GERAÇÃO DO PIX VIA MERCADO PAGO
             if (textUP === 'GERAR PIX' && pedido.status === 'AGUARDANDO_PAGAMENTO') {
                 await sidDigitando(sock, from, 2000);
                 
                 try {
                     if (!payment) {
-                        throw new Error("SDK do Mercado Pago não inicializado. Verifique o MP_TOKEN no .sid");
+                        throw new Error("SDK do Mercado Pago não inicializado.");
                     }
 
                     const body = {
@@ -264,7 +260,6 @@ async function iniciarSid() {
 
                 } catch (mpError) {
                     console.error("Erro ao gerar Pix no Mercado Pago:", mpError.message);
-                    // Fallback de segurança para chave manual caso a API falhe
                     const msgManual = `✅ *PAGAMENTO (${pedido.info.nomeLoja})*\n\n` +
                                       `💰 Valor Total: *R$ ${pedido.totalComFrete.toFixed(2)}*\n` +
                                       `🔑 Chave PIX: *${pedido.info.emailPix}*\n\n` +
@@ -280,41 +275,50 @@ async function iniciarSid() {
 
         } catch (err) { console.error("Erro Maya:", err.message); }
     });
+}
 
-    // --- CONFIGURAÇÃO DO EXPRESS E ROTA 2FA ---
-    const app = express();
-    app.use(express.json());
+// --- CONFIGURAÇÃO DO EXPRESS E ROTA 2FA BLINDADA ---
+const app = express();
+app.use(express.json());
 
-    app.post('/enviar-2fa', async (req, res) => {
-        const { telefone, codigo } = req.body;
-        console.log(`\n📲 Recebida requisição 2FA para o telefone: ${telefone} com o código: ${codigo}`);
+app.post('/enviar-2fa', async (req, res) => {
+    const { telefone, codigo } = req.body;
+    console.log(`\n📲 Recebida requisição 2FA para o telefone: ${telefone} com o código: ${codigo}`);
 
-        if (!telefone || !codigo) {
-            return res.status(400).json({ sucesso: false, erro: 'Telefone ou código ausente.' });
-        }
-
-        try {
-            const numeroLimpo = telefone.replace(/\D/g, '');
-            const jid = `${numeroLimpo}@s.whatsapp.net`;
-            const mensagem = `🔐 *SISTEMA SID-MAYA*\n\nSeu código de verificação para o painel é: *${codigo}*.\n\n_Válido por 5 minutos._ ✨`;
-
-            console.log(`📤 Tentando enviar mensagem para JID: ${jid}`);
-            const resultadoEnvio = await sock.sendMessage(jid, { text: mensagem });
-            console.log(`✅ Mensagem enviada com sucesso! Resposta do Baileys:`, resultadoEnvio);
-
-            res.json({ sucesso: true, mensagem: 'Código 2FA enviado com sucesso pelo Maya-bot!' });
-        } catch (error) {
-            console.error("❌ ERRO CRÍTICO AO ENVIAR 2FA:", error);
-            res.status(500).json({ sucesso: false, erro: error.message });
-        }
-    });
-
-    if (!global.expressServerRunning) {
-        app.listen(3000, () => {
-            console.log('🌐 Servidor HTTP do Maya-bot rodando na porta 3000');
-        });
-        global.expressServerRunning = true;
+    if (!telefone || !codigo) {
+        return res.status(400).json({ sucesso: false, erro: 'Telefone ou código ausente.' });
     }
+
+    // 🛡️ Validação se o socket existe e está conectado
+    if (!isBotReady || !sock || !sock.ws || sock.ws.readyState !== sock.ws.OPEN) {
+        console.log('⚠️ Tentativa de 2FA rejeitada: Bot ainda não está conectado ou socket fechado.');
+        return res.status(503).json({ 
+            sucesso: false, 
+            erro: 'O bot do WhatsApp está reconectando ou offline no momento. Tente novamente em alguns segundos.' 
+        });
+    }
+
+    try {
+        const numeroLimpo = telefone.replace(/\D/g, '');
+        const jid = `${numeroLimpo}@s.whatsapp.net`;
+        const mensagem = `🔐 *SISTEMA SID-MAYA*\n\nSeu código de verificação para o painel é: *${codigo}*.\n\n_Válido por 5 minutos._ ✨`;
+
+        console.log(`📤 Tentando enviar mensagem para JID: ${jid}`);
+        const resultadoEnvio = await sock.sendMessage(jid, { text: mensagem });
+        console.log(`✅ Mensagem enviada com sucesso! Resposta do Baileys:`, resultadoEnvio);
+
+        res.json({ sucesso: true, mensagem: 'Código 2FA enviado com sucesso pelo Maya-bot!' });
+    } catch (error) {
+        console.error("❌ ERRO CRÍTICO AO ENVIAR 2FA:", error);
+        res.status(500).json({ sucesso: false, erro: error.message });
+    }
+});
+
+if (!global.expressServerRunning) {
+    app.listen(3000, () => {
+        console.log('🌐 Servidor HTTP do Maya-bot rodando na porta 3000');
+    });
+    global.expressServerRunning = true;
 }
 
 iniciarSid().catch(e => console.error("Erro fatal na inicialização:", e));

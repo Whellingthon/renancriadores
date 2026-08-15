@@ -30,7 +30,7 @@ export default function Admin() {
   }, [navigate]);
 
   // Estados do CRUD Manual
-  const [produtoManual, setProdutoManual] = useState({ nome: '', preco: '', imagemUrl: '' });
+  const [produtoManual, setProdutoManual] = useState({ nome: '', preco: '', imagemUrl: '', descricao: '' });
   const [fotoArquivo, setFotoArquivo] = useState(null); // NOVO: Armazena o arquivo de imagem do PC
   const [listaProdutosManuais, setListaProdutosManuais] = useState([]);
   const [idEditando, setIdEditando] = useState(null);
@@ -158,7 +158,8 @@ export default function Admin() {
       id: idEditando, 
       nome: produtoManual.nome,
       preco: produtoManual.preco,
-      imagemUrl: urlFinalDaImagem
+      imagemUrl: urlFinalDaImagem,
+      descricao: produtoManual.descricao
     };
 
     const endpoint = isEditando ? `${BASE_URL}/api_editar_produto_manual.php` : `${BASE_URL}/api_produto_manual.php`;
@@ -179,7 +180,7 @@ export default function Admin() {
 
       if (resultado.sucesso) {
         setToast({ message: isEditando ? "Produto updated!" : "Produto cadastrado!", type: "success" });
-        setProdutoManual({ nome: '', preco: '', imagemUrl: '' }); 
+        setProdutoManual({ nome: '', preco: '', imagemUrl: '', descricao: '' });
         setFotoArquivo(null); // Reseta estado do binário
         if (document.getElementById('input-foto-arquivo')) {
           document.getElementById('input-foto-arquivo').value = ""; // Limpa visualmente o input de arquivo
@@ -198,11 +199,12 @@ export default function Admin() {
     }
   };
 
-  const handleEditarProduto = (produto) => {
+const handleEditarProduto = (produto) => {
     setProdutoManual({
       nome: produto.nome,
       preco: produto.preco || produto.preco_custo || '', 
-      imagemUrl: produto.imagem
+      imagemUrl: produto.imagem,
+      descricao: produto.descricao || '' // 👇 Puxa a descrição do banco
     });
     setIdEditando(produto.id);
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); 
@@ -232,8 +234,8 @@ export default function Admin() {
     }
   };
 
-  const handleCancelarEdicao = () => {
-    setProdutoManual({ nome: '', preco: '', imagemUrl: '' });
+const handleCancelarEdicao = () => {
+    setProdutoManual({ nome: '', preco: '', imagemUrl: '', descricao: '' });
     setFotoArquivo(null);
     if (document.getElementById('input-foto-arquivo')) {
       document.getElementById('input-foto-arquivo').value = "";
@@ -453,7 +455,7 @@ export default function Admin() {
             )}
           </div>
           <div className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nome do Produto</label>
                 <input 
@@ -466,7 +468,7 @@ export default function Admin() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Preço de Venda Final (R$)</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Preço Final (R$)</label>
                 <input 
                   type="text" 
                   name="preco"
@@ -477,9 +479,8 @@ export default function Admin() {
                 />
               </div>
               <div className="flex flex-col">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Foto do Produto (Computador ou Link)</label>
-                <div className="flex flex-col gap-2 mb-4">
-                  {/* Seletor do Computador */}
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Foto (PC ou Link)</label>
+                <div className="flex flex-col gap-2">
                   <input 
                     id="input-foto-arquivo"
                     type="file" 
@@ -487,32 +488,44 @@ export default function Admin() {
                     onChange={(e) => {
                       if (e.target.files[0]) {
                         setFotoArquivo(e.target.files[0]);
-                        setProdutoManual(prev => ({ ...prev, imagemUrl: "" })); // Zera a URL se escolheu arquivo local
+                        setProdutoManual(prev => ({ ...prev, imagemUrl: "" })); 
                       }
                     }} 
                     className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer border rounded-xl p-1 bg-gray-50/50"
                   />
-                  {/* URL Externa de Texto */}
                   {!fotoArquivo && (
                     <input 
                       type="text" 
                       name="imagemUrl"
                       value={produtoManual.imagemUrl || ""}
                       onChange={handleInputChange}
-                      placeholder="Ou cole uma URL da imagem aqui"
+                      placeholder="Ou cole uma URL aqui"
                       className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-950 placeholder-gray-400 text-xs"
                     />
                   )}
                 </div>
-                <button 
-                  onClick={handleCadastrarProdutoManual}
-                  className={`${idEditando ? 'bg-orange-500 hover:bg-orange-600' : 'bg-purple-600 hover:bg-purple-700'} text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors mt-auto w-full`}
-                >
-                  {idEditando ? <Edit size={20} /> : <PlusCircle size={20} />}
-                  {idEditando ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR PRODUTO'}
-                </button>
               </div>
             </div>
+
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Descrição do Produto</label>
+              <textarea 
+                name="descricao"
+                value={produtoManual.descricao || ""}
+                onChange={handleInputChange}
+                rows="3"
+                placeholder="Digite os detalhes, medidas ou informações importantes do produto..."
+                className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 placeholder-gray-400"
+              ></textarea>
+            </div>
+
+            <button 
+              onClick={handleCadastrarProdutoManual}
+              className={`${idEditando ? 'bg-orange-500 hover:bg-orange-600' : 'bg-purple-600 hover:bg-purple-700'} text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors w-full`}
+            >
+              {idEditando ? <Edit size={20} /> : <PlusCircle size={20} />}
+              {idEditando ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR PRODUTO'}
+            </button>
           </div>
         </div>
       </main>

@@ -18,17 +18,18 @@ try {
     // Transforma "R$ 25,00" ou "25,00" em "25.00" para o banco de dados
     $preco_limpo = str_replace(['R$', ' ', ','], ['', '', '.'], $data['preco']);
 
-    // O comando SQL usando :preco_custo como apelido
-    $sql = "UPDATE produtos SET nome = :nome, preco_custo = :preco_custo, imagemUrl = :imagemUrl WHERE id = :id";
+    // 👇 Adicionamos a coluna descricao no UPDATE
+    $sql = "UPDATE produtos SET nome = :nome, preco_custo = :preco_custo, imagemUrl = :imagemUrl, descricao = :descricao WHERE id = :id";
     
     $stmt = $pdo->prepare($sql);
     
-    // O array usando exatamente os mesmos apelidos do comando acima
+    // 👇 Vinculamos a variável :descricao com o dado que vem do React
     $stmt->execute([
         ':id'          => $data['id'],
         ':nome'        => $data['nome'],
         ':preco_custo' => $preco_limpo, 
-        ':imagemUrl'   => $data['imagemUrl']
+        ':imagemUrl'   => $data['imagemUrl'],
+        ':descricao'   => isset($data['descricao']) ? $data['descricao'] : ''
     ]);
 
     echo json_encode(["sucesso" => true, "mensagem" => "Produto atualizado com sucesso!"]);

@@ -17,14 +17,16 @@ try {
     $nome = isset($data['nome']) ? trim($data['nome']) : '';
     $preco = isset($data['preco']) ? floatval($data['preco']) : 0;
     $imagemUrl = isset($data['imagemUrl']) ? trim($data['imagemUrl']) : '';
+    // 👇 Capturamos a descrição que veio do React
+    $descricao = isset($data['descricao']) ? trim($data['descricao']) : '';
 
     if (empty($nome) || $preco <= 0) {
         throw new Exception("Nome e Preço são campos obrigatórios.");
     }
 
-    // AQUI ESTÁ O AJUSTE: Usando a coluna `imagemUrl` exata do banco
-    $stmt = $pdo->prepare("INSERT INTO produtos (nome, preco_custo, imagemUrl, origem) VALUES (?, ?, ?, 'manual')");
-    $stmt->execute([$nome, $preco, $imagemUrl]);
+   
+    $stmt = $pdo->prepare("INSERT INTO produtos (nome, preco_custo, imagemUrl, descricao, origem) VALUES (?, ?, ?, ?, 'manual')");
+    $stmt->execute([$nome, $preco, $imagemUrl, $descricao]);
 
     echo json_encode(["sucesso" => true, "mensagem" => "Produto cadastrado com sucesso!"]);
 
