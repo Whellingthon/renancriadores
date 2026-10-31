@@ -4,6 +4,7 @@ import { Lock, User } from 'lucide-react';
 import logo from '../pages/img/logotipo.png'; 
 
 const BASE_URL = "http://187.127.28.171/api";
+//const BASE_URL = "[http://187.127.28.171/api](http://187.127.28.171/api)";
 
 export default function Login() {
   const [usuario, setUsuario] = useState('');

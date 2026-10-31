@@ -1,18 +1,25 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, Smartphone, ShoppingCart, Calendar } from 'lucide-react';
+import { CreditCard, Smartphone, ShoppingCart, Calendar, User } from 'lucide-react';
 
-export default function DashboardVendas({ baseUrl }) {
+// === URL COLOCADA DIRETAMENTE AQUI ===
+const BASE_URL = "http://187.127.28.171/api";
+
+export default function DashboardVendas() { // <-- Removi o { baseUrl } daqui
   const [vendas, setVendas] = useState([]);
   
-  // Proteção adicionada aqui ( || 0 ) para evitar o erro de Not a Number (NaN)
+  // Proteção para evitar o erro de Not a Number (NaN)
   const totalVendido = vendas.reduce((acc, v) => acc + (parseFloat(v.total) || 0), 0);
   const ticketMedio = vendas.length > 0 ? (totalVendido / vendas.length) : 0;
 
   const carregarVendas = async () => {
     try {
-      const resp = await fetch(`${baseUrl}/api_get_vendas.php`);
+      // Usando a constante BASE_URL definida ali em cima
+      const resp = await fetch(`${BASE_URL}/api_get_vendas.php`);
       const dados = await resp.json();
-      // Garantimos que sempre seja um array, mesmo se a API falhar
+      
+      console.log("Dados recebidos da API de Vendas:", dados);
+      
+      // Garantimos que sempre seja um array
       setVendas(Array.isArray(dados) ? dados : []);
     } catch (err) {
       console.error("Erro ao carregar vendas", err);
@@ -22,7 +29,7 @@ export default function DashboardVendas({ baseUrl }) {
   useEffect(() => { carregarVendas(); }, []);
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-8">
       <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
         <ShoppingCart size={20} /> Histórico de Vendas
       </h3>
@@ -49,6 +56,7 @@ export default function DashboardVendas({ baseUrl }) {
             <thead>
               <tr className="text-xs text-gray-500 uppercase">
                 <th className="p-3">Data</th>
+                <th className="p-3">Cliente</th>
                 <th className="p-3">Valor</th>
                 <th className="p-3">Pagamento</th>
                 <th className="p-3">Itens</th>
@@ -60,14 +68,24 @@ export default function DashboardVendas({ baseUrl }) {
                   <td className="p-3 text-gray-600">
                     {venda.data_pedido ? new Date(venda.data_pedido).toLocaleDateString() : 'N/A'}
                   </td>
+                  
+                  <td className="p-3 font-bold text-gray-800">
+                    {venda.nome_cliente || 'Sem nome'}
+                  </td>
+                  
                   <td className="p-3 font-bold text-green-600">
                     R$ {(parseFloat(venda.total) || 0).toFixed(2)}
                   </td>
+                  
                   <td className="p-3 font-bold">
-                    <span className={`px-2 py-1 rounded ${venda.forma_pagamento === 'pix' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                        {venda.forma_pagamento?.toUpperCase() || 'N/A'}
+                    <span className={`px-2 py-1 rounded text-xs uppercase
+                      ${venda.forma_pagamento === 'pix' ? 'bg-purple-100 text-purple-700' : 
+                        venda.forma_pagamento === 'cartao' ? 'bg-blue-100 text-blue-700' : 
+                        'bg-gray-100 text-gray-700'}`}>
+                        {venda.forma_pagamento || 'N/A'}
                     </span>
                   </td>
+                  
                   <td className="p-3 text-gray-600">
                       {venda.itens_detalhados?.length || 0} itens
                   </td>
@@ -76,7 +94,7 @@ export default function DashboardVendas({ baseUrl }) {
             </tbody>
           </table>
         </div>
-      </div> {/* Fim da div max-w-6xl */}
-    </div> /* <-- AQUI ESTAVA FALTANDO ESSA DIV PARA FECHAR O BLOCO PRINCIPAL */
+      </div>
+    </div>
   );
 }

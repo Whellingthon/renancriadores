@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Send, Search, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import logo from '../pages/img/logotipo.png'; 
-import AdBanner from '../components/AdBanner'; // Ajuste o caminho caso precise apontar para a pasta correta de componentes
-import React from 'react';
+import AdBanner from '../components/AdBanner';
 
 const BASE_URL = "http://187.127.28.171/api";
+const WHATSAPP_RENAN = "5512996302071";
 
 export default function Vitrine() {
   // -------------------------
@@ -16,10 +16,15 @@ export default function Vitrine() {
   const [busca, setBusca] = useState('');
   const [produtoSelecionado, setProdutoSelecionado] = useState(null);
   
-  // Estados para o fluxo de checkout
-  const [modalStep, setModalStep] = useState('carrinho'); // 'carrinho' ou 'pagamento'
-  const [formaPagto, setFormaPagto] = useState(null); // null (formulário), 'selecao', 'pix', 'cartao'
-  const [dadosCliente, setDadosCliente] = useState({ nome: '', whatsapp: '', endereco: '' });
+  // Estados para o fluxo de checkout simplificado
+  const [modalStep, setModalStep] = useState('carrinho'); // 'carrinho' ou 'checkout'
+  const [formaPagto, setFormaPagto] = useState('pix'); // 'pix' ou 'cartao' (apenas informativo para o WhatsApp e Banco)
+  const [dadosCliente, setDadosCliente] = useState({ 
+    nome: '', 
+    whatsapp: '', 
+    endereco: '', 
+    complemento: '' 
+  });
   const [enviando, setEnviando] = useState(false);
 
   const buscarCep = async (cepDigitado) => {
@@ -87,8 +92,57 @@ export default function Vitrine() {
   const limparCarrinhoEVoltar = () => {
     setCarrinho([]);
     setModalStep('carrinho');
-    setFormaPagto(null);
-    setDadosCliente({ nome: '', whatsapp: '', endereco: '' });
+    setFormaPagto('pix');
+    setDadosCliente({ nome: '', whatsapp: '', endereco: '', complemento: '' });
+  };
+
+  const handleFinalizarNoWhatsApp = async () => {
+    if (!dadosCliente.nome.trim() || !dadosCliente.whatsapp.trim() || !dadosCliente.endereco.trim()) {
+      alert("Por favor, preencha todos os campos de entrega.");
+      return;
+    }
+
+    setEnviando(true);
+    const totalCalculado = calcularTotal();
+    const enderecoCompleto = dadosCliente.complemento.trim()
+      ? `${dadosCliente.endereco}, ${dadosCliente.complemento}`
+      : dadosCliente.endereco;
+    const listaItensTexto = carrinho.map(i => `• ${i.nome} - ${i.preco}`).join('\n');
+
+    // === 1. SALVA A VENDA NO BANCO DE DADOS (DASHBOARD) ===
+    try {
+      await fetch(`${BASE_URL}/api_salvar_pedido.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          total: totalCalculado,
+          forma_pagamento: formaPagto,
+          nome: dadosCliente.nome,           
+          whatsapp: dadosCliente.whatsapp,   
+          endereco: enderecoCompleto,   
+          itens: carrinho                    
+        })
+      });
+    } catch (erro) {
+      console.error("Erro ao registrar a venda no banco de dados:", erro);
+    }
+
+    // === 2. DIRECIONA TODA VENDA PARA O WHATSAPP DO RENAN ===
+    const textoPagamento = formaPagto === 'pix' ? 'PIX' : 'Cartão de Crédito';
+    const mensagemRenan = 
+      `Olá Renan! Gostaria de finalizar meu pedido:\n\n` +
+      `😊 *Nome:* ${dadosCliente.nome}\n` +
+      `📱 *WhatsApp:* ${dadosCliente.whatsapp}\n` +
+      `📍 *Endereço:* ${enderecoCompleto}\n` +
+      `💳 *Forma de Pagamento:* ${textoPagamento}\n` +
+      `💲 *Total dos Produtos:* R$ ${totalCalculado.toFixed(2)}\n\n` +
+      `📦 *Itens:*\n${listaItensTexto}`;
+
+    const urlWap = `https://wa.me/${WHATSAPP_RENAN}?text=${encodeURIComponent(mensagemRenan)}`;
+    window.open(urlWap, '_blank');
+
+    setEnviando(false);
+    limparCarrinhoEVoltar();
   };
 
   // -------------------------
@@ -136,13 +190,13 @@ export default function Vitrine() {
         ))}
       </main>
 
-      {/* BLOCO DE PUBLICIDADE (ESCOLHIDO PARA O FINAL DA LISTA DE PRODUTOS) */}
+      {/* BLOCO DE PUBLICIDADE */}
       <div className="max-w-6xl mx-auto w-full mt-16 border-t pt-6">
         <p className="text-xs text-center text-gray-400 mb-2">Publicidade</p>
         <AdBanner clientSlot="1234567890" />
       </div>
 
-      {/* CARRINHO FIXO E FLUXO DE CHECKOUT */}
+      {/* CARRINHO FIXO E FINALIZAÇÃO DIRETA NO WHATSAPP */}
       {carrinho.length > 0 && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
           <div className="bg-white rounded-3xl shadow-2xl border-2 border-green-500 p-6">
@@ -157,7 +211,7 @@ export default function Vitrine() {
                   </p>
                 </div>
                 <button 
-                  onClick={() => setModalStep('pagamento')} 
+                  onClick={() => setModalStep('checkout')} 
                   className="bg-green-600 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-2 transition-all hover:bg-green-700 shadow-lg"
                 >
                   <Send size={20} /> Finalizar Pedido
@@ -165,155 +219,99 @@ export default function Vitrine() {
               </div>
             )}
 
-            {/* FLUXO DE PAGAMENTO */}
-            {modalStep === 'pagamento' && (
-              <div className="flex flex-col gap-4">
+            {/* ETAPA ÚNICA: DADOS DO CLIENTE E ENVIO DIRETO PARA O WHATSAPP */}
+            {modalStep === 'checkout' && (
+              <div className="flex flex-col gap-3">
+                <h3 className="font-bold text-lg text-center text-gray-800">
+                  Preencha seus dados para finalizar no WhatsApp
+                </h3>
                 
-                {/* ETAPA 1: DADOS DO CLIENTE */}
-                {!formaPagto && (
-                  <div className="flex flex-col gap-3">
-                    <h3 className="font-bold text-lg text-center text-gray-800">Dados para entrega</h3>
-                    
-                    <input 
-                      type="text" 
-                      placeholder="Seu Nome Completo" 
-                      className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
-                      value={dadosCliente.nome}
-                      onChange={(e) => setDadosCliente({...dadosCliente, nome: e.target.value})} 
-                    />
-                    
-                    <input 
-                      type="text" 
-                      placeholder="WhatsApp (DDD + Número)" 
-                      className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
-                      value={dadosCliente.whatsapp}
-                      onChange={(e) => setDadosCliente({...dadosCliente, whatsapp: e.target.value})} 
-                    />
+                <input 
+                  type="text" 
+                  placeholder="Seu Nome Completo" 
+                  className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
+                  value={dadosCliente.nome}
+                  onChange={(e) => setDadosCliente({...dadosCliente, nome: e.target.value})} 
+                />
+                
+                <input 
+                  type="text" 
+                  placeholder="WhatsApp (DDD + Número)" 
+                  className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
+                  value={dadosCliente.whatsapp}
+                  onChange={(e) => setDadosCliente({...dadosCliente, whatsapp: e.target.value})} 
+                />
 
-                    {/* CAMPO DE CEP E ENDEREÇO */}
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="CEP (Só números)" 
-                        maxLength="9"
-                        className="p-3 w-1/3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
-                        onChange={(e) => {
-                          const valor = e.target.value;
-                          buscarCep(valor); 
-                        }} 
-                      />
-                      
-                      <input 
-                        type="text" 
-                        placeholder="Rua, Bairro, Cidade" 
-                        className="p-3 w-2/3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
-                        value={dadosCliente.endereco}
-                        onChange={(e) => setDadosCliente({...dadosCliente, endereco: e.target.value})} 
-                      />
-                    </div>
-                    
-                    {/* NÚMERO E COMPLEMENTO */}
-                    <input 
-                      type="text" 
-                      placeholder="Número e Complemento (Ex: 123, Apto 4)" 
-                      className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
-                      onChange={(e) => setDadosCliente({...dadosCliente, endereco: dadosCliente.endereco + ", " + e.target.value})} 
-                    />
-                    
-                    <button 
-                      onClick={() => {
-                        if(dadosCliente.nome.trim() && dadosCliente.whatsapp.trim() && dadosCliente.endereco.trim()) {
-                          setFormaPagto('selecao'); 
-                        } else {
-                          alert("Por favor, preencha todos os campos de entrega.");
-                        }
-                      }}
-                      className="bg-green-600 text-white py-3 rounded-xl font-bold mt-2 hover:bg-green-700 shadow-md transition-all"
-                    >
-                      Confirmar Dados e Escolher Pagamento
-                    </button>
-                  </div>
-                )}
+                {/* CAMPO DE CEP E ENDEREÇO */}
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="CEP (Só números)" 
+                    maxLength="9"
+                    className="p-3 w-1/3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
+                    onChange={(e) => buscarCep(e.target.value)} 
+                  />
+                  
+                  <input 
+                    type="text" 
+                    placeholder="Rua, Bairro, Cidade" 
+                    className="p-3 w-2/3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
+                    value={dadosCliente.endereco}
+                    onChange={(e) => setDadosCliente({...dadosCliente, endereco: e.target.value})} 
+                  />
+                </div>
+                
+                {/* NÚMERO E COMPLEMENTO */}
+                <input 
+                  type="text" 
+                  placeholder="Número e Complemento (Ex: 123, Apto 4)" 
+                  className="p-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm" 
+                  value={dadosCliente.complemento}
+                  onChange={(e) => setDadosCliente({...dadosCliente, complemento: e.target.value})} 
+                />
 
-                {/* ETAPA 2: SELEÇÃO DE PAGAMENTO */}
-                {formaPagto === 'selecao' && (
-                  <div className="flex flex-col gap-3">
-                    <h3 className="font-bold text-center text-gray-800">Escolha como pagar:</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button onClick={() => setFormaPagto('pix')} className="bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl font-bold shadow-md">
-                        Pagar com PIX
-                      </button>
-                      <button onClick={() => setFormaPagto('cartao')} className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-md">
-                        Cartão de Crédito
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {/* PREFERÊNCIA DE PAGAMENTO (Apenas para ir escrito no WhatsApp e salvar no banco) */}
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormaPagto('pix')}
+                    className={`py-2.5 rounded-xl font-bold text-sm border-2 transition-all ${
+                      formaPagto === 'pix'
+                        ? 'bg-green-50 border-green-600 text-green-700'
+                        : 'bg-white border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    Prefiro pagar no PIX
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormaPagto('cartao')}
+                    className={`py-2.5 rounded-xl font-bold text-sm border-2 transition-all ${
+                      formaPagto === 'cartao'
+                        ? 'bg-green-50 border-green-600 text-green-700'
+                        : 'bg-white border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    Prefiro Cartão
+                  </button>
+                </div>
 
-                {/* ETAPA 3: FINALIZAÇÃO (PIX OU CARTÃO) */}
-                {(formaPagto === 'pix' || formaPagto === 'cartao') && (
-                  <div className="text-center p-5 bg-gray-50 rounded-xl border border-gray-200">
-                    <p className="font-bold text-gray-800 mb-2">Resumo do Pedido - {dadosCliente.nome}</p>
-                    
-                    {formaPagto === 'pix' ? (
-                      <div className="bg-purple-100 p-3 rounded-lg text-purple-800 text-sm mb-4">
-                        <p className="font-bold mb-1">🤖 Atendimento Automático via Robô (Maya)</p>
-                        <p>Ao clicar abaixo, você será direcionado para o WhatsApp da nossa assistente virtual para calcular o frete e finalizar o pagamento.</p>
-                      </div>
-                    ) : (
-                      <div className="bg-blue-100 p-3 rounded-lg text-blue-800 text-sm mb-4">
-                        <p className="font-medium">Você será redirecionado para o WhatsApp do Renan para combinar os detalhes do Cartão de Crédito.</p>
-                      </div>
-                    )}
-
-                    <button 
-                      onClick={() => {
-                        const totalCalculado = calcularTotal();
-                        const listaItensTexto = carrinho.map(i => `• ${i.nome} - ${i.preco}`).join('\n');
-
-                        if (formaPagto === 'pix') {
-                          const mensagemMaya = `RENAN - Pedido: R$ ${totalCalculado.toFixed(2)}\n` +
-                                               `👤 *Cliente:* ${dadosCliente.nome}\n` +
-                                               `📱 *WhatsApp:* ${dadosCliente.whatsapp}\n` +
-                                               `📍 *Endereço:* ${dadosCliente.endereco}\n\n` +
-                                               `📦 *Itens do Carrinho:*\n${listaItensTexto}`;
-
-                          const numeroBotMaya = "5512997498001"; 
-                          const urlWap = `https://wa.me/${numeroBotMaya}?text=${encodeURIComponent(mensagemMaya)}`;
-                          window.open(urlWap, '_blank');
-
-                        } else {
-                          const mensagemRenan = `Olá Renan! Gostaria de finalizar minha compra no *Cartão de Crédito*.\n\n` +
-                                                `👤 *Nome:* ${dadosCliente.nome}\n` +
-                                                `📱 *WhatsApp:* ${dadosCliente.whatsapp}\n` +
-                                                `📍 *Endereço:* ${dadosCliente.endereco}\n` +
-                                                `💰 *Total:* R$ ${totalCalculado.toFixed(2)}\n\n` +
-                                                `📦 *Itens:*\n${listaItensTexto}`;
-
-                          const numeroRenan = "5512996302071";
-                          const urlWapRenan = `https://wa.me/${numeroRenan}?text=${encodeURIComponent(mensagemRenan)}`;
-                          window.open(urlWapRenan, '_blank');
-                        }
-
-                        limparCarrinhoEVoltar();
-                      }}
-                      className="w-full text-white py-4 rounded-xl font-black text-lg transition-all shadow-lg bg-green-600 hover:bg-green-700"
-                    >
-                      {formaPagto === 'pix' ? "FALAR COM O ROBÔ (PIX)" : "FINALIZAR COM O RENAN (CARTÃO)"}
-                    </button>
-                  </div>
-                )}
-
-                {/* BOTÃO VOLTAR GERAL */}
+                {/* BOTÃO ÚNICO DE FINALIZAR DIRETO NO WHATSAPP */}
                 <button 
-                  onClick={() => { 
-                    if(formaPagto === 'pix' || formaPagto === 'cartao') setFormaPagto('selecao');
-                    else if(formaPagto === 'selecao') setFormaPagto(null);
-                    else setModalStep('carrinho');
-                  }} 
-                  className="flex items-center justify-center gap-1 text-gray-500 hover:text-gray-800 text-sm font-medium mt-2 py-2"
+                  onClick={handleFinalizarNoWhatsApp}
+                  disabled={enviando}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 transition-all shadow-lg mt-2 disabled:opacity-50"
                 >
-                  <ArrowLeft size={16} /> Voltar
+                  <Send size={20} /> 
+                  {enviando ? "ENVIANDO..." : "FINALIZAR COMPRA NO WHATSAPP"}
+                </button>
+
+                {/* BOTÃO VOLTAR */}
+                <button 
+                  onClick={() => setModalStep('carrinho')} 
+                  className="flex items-center justify-center gap-1 text-gray-500 hover:text-gray-800 text-sm font-medium py-1"
+                >
+                  <ArrowLeft size={16} /> Voltar ao carrinho
                 </button>
               </div>
             )}

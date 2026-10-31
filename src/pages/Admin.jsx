@@ -11,6 +11,7 @@ import DashboardVendas from './DashboardVendas';
 // AMBIENTE DE PRODUÇÃO (VPS)
 // ==========================================
 const BASE_URL = "http://187.127.28.171/api";
+//const BASE_URL = "[http://187.127.28.171/api](http://187.127.28.171/api)";
 
 export default function Admin() {
   const [margin, setMargin] = useState(20);
