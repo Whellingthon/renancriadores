@@ -3,7 +3,7 @@ import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore'
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { db, auth, googleProvider } from './firebase';
 
-const TELEFONE_LOJISTA = "5514997669155";
+const TELEFONE_LOJISTA = "5512996302071";
 const ADMIN_EMAILS = [
   "welingtonhopka@gmail.com",
   "profrenanmachado@gmail.com"
