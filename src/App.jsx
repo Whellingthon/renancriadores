@@ -4,7 +4,10 @@ import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { db, auth, googleProvider } from './firebase';
 
 const TELEFONE_LOJISTA = "5514997669155";
-const EMAIL_ADMIN = "welingtonhopka@gmail.com"; 
+const ADMIN_EMAILS = [
+  "welingtonhopka@gmail.com",
+  "profrenanmachado@gmail.com"
+];
 
 const LOJA = { nome: "Criatório Cidades", slogan: "Genética de campeões" };
 const BRL = (v) => parseFloat(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -48,7 +51,7 @@ export default function LojaCompleta() {
   useEffect(() => {
     carregarProdutos();
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setAdminLogado(!!user && user.email === EMAIL_ADMIN);
+   setAdminLogado(!!user && ADMIN_EMAILS.includes(user.email));
     });
     return () => unsubscribe();
   }, []);
@@ -67,9 +70,11 @@ export default function LojaCompleta() {
   const fazerLoginAdmin = async () => {
     try {
       const credencial = await signInWithPopup(auth, googleProvider);
-      if (credencial.user.email !== EMAIL_ADMIN) {
+      
+      // O ponto de exclamação (!) significa "Se NÃO estiver na lista"
+      if (!ADMIN_EMAILS.includes(credencial.user.email)) {
         await signOut(auth);
-        notify("Acesso restrito ao dono da loja.", "err");
+        notify("Acesso restrito aos donos da loja.", "err");
       } else {
         setTelaLogin(false);
         notify("Bem-vindo de volta, chefe! 👑");
@@ -78,7 +83,6 @@ export default function LojaCompleta() {
       notify("Erro ao logar. Tente novamente.", "err");
     }
   };
-
   const sairAdmin = async () => {
     await signOut(auth);
     setAdminLogado(false);
